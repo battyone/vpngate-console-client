@@ -1,2 +1,2 @@
 # vpngate-console-client
-Simple console client for vpngate
+Simple console client for vpngate (vpngate.net free VPN)
