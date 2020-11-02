@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#zavodim chelovechesike peremennye
+
+MAIN_STAT=$1 #up/down
+DEV_NAME=$2
+TUN_MTU=$3
+LINK_MTU=$4
+LOCAL_IP=$5
+REMOTE_IP=$6
+ADD_STAT=$7 #init/restart
+
+CURDATE=`date`
+ACPATH="/usr/sbin/"
+
+#esli podnyalos soedinenie ustanavlivaem marshruty i
+#razreshaem FORWARD traffic
+if [ "$MAIN_STAT" = "up" ]; then
+    "$ACPATH"ip route del default
+    "$ACPATH"ip route add default via $REMOTE_IP dev $DEV_NAME src $LOCAL_IP
+    "$ACPATH"iptables -P FORWARD ACCEPT
+    exit
+fi
+
+if [ "$MAIN_STAT" = "down" ]; then #soedinenie razorvano
+    "$ACPATH"iptables -P FORWARD DROP #zapreshaem FORWARD traffic
+    "$ACPATH"ip route del default
+    #set your default routing
+fi

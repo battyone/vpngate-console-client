@@ -1,0 +1,4 @@
+script-security 2
+up '/usr/share/vpngate/ovpn-routes up'
+down '/usr/share/vpngate/ovpn-routes down'
+auth-user-pass /usr/share/vpngate/vpngate.auth

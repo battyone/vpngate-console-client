@@ -1,0 +1,660 @@
+#!/bin/bash
+
+LISTADDR="http://www.vpngate.net/api/iphone/"
+LISTFILE="servers"
+DATADIR="/usr/share/vpngate"
+RETVAL=""
+DIALOG="dialog"
+OPENVPN="openvpn"
+
+LAST_MNU_MAIN=""
+LAST_MNU_SORT=""
+LAST_MNU_SORT_DIR=""
+LAST_MNU_VPNCONNECT=""
+
+VPN_LOGIN="vpn"
+VPN_PASS="vpn"
+AUTH_FILE="vpngate.auth"
+AUTH_DIR="$DATADIR"
+
+LOG_FILE=""
+LOG_TTYN=""
+RMLOG=0
+LOG_APPEND=0
+
+menu_main()
+{
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+    
+    $DIALOG --clear --title "MAIN MENU" \
+	--default-item "$LAST_MNU_MAIN" \
+        --menu "Select action:" 20 51 9 \
+        "U"  "Update VPN List" \
+        "S" "Sort List by..." \
+        "I" "Sort direction..." \
+        "O" "VPN Options..." \
+        "C" "Connect VPN..." \
+        "D" "Disconnect..." \
+        "R" "Reconnect..." \
+        "A" "About..." \
+        "X" "Exit" 2>"$DATADIR/dlgres.tmp"
+
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    RETVAL=`cat "$DATADIR/dlgres.tmp"`
+	    LAST_MNU_MAIN="$RETVAL"
+	    ;;
+	$ESC_C)
+	    rm "$DATADIR/dlgres.tmp"
+	    exit
+	    ;;
+	$CANCEL_C)
+	    rm "$DATADIR/dlgres.tmp"
+	    exit
+	    ;;
+    esac
+}
+
+menu_sort()
+{
+
+    MNUFILE="$DATADIR/sortmenu.txt"
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+
+    if [ ! -e "$MNUFILE" ]; then
+	messagebox "ERROR" "File $MNUFILE not found! \n \
+	    Data not downloaded?"
+	return 1
+    fi
+    
+    if [ -e "$DATADIR/sort.field" ]; then
+	LAST_MNU_SORT=`cat "$DATADIR/sort.field"|xargs`
+    fi
+
+    $DIALOG --clear \
+	--default-item "$LAST_MNU_SORT" \
+	--title "Sort field" \
+	--menu "Select option:" \
+	20 51 10 \
+	--file "$MNUFILE" 2>"$DATADIR/dlgres.tmp"
+    
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    RETVAL=`cat "$DATADIR/dlgres.tmp"`
+	    if [ "$RETVAL" == "B" ]; then #back to main menu, not change sort
+		return 1
+	    else
+		echo "$RETVAL" >"$DATADIR/sort.field"
+	    fi
+	    ;;
+	$ESC_C)
+	    return 1;;
+	$CANCEL_C)
+	    return 1;;
+    esac
+}
+
+menu_sort_dir()
+{
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+    
+    if [ -e "$DATADIR/sort.order" ]; then
+	LAST_MNU_SORT_DIR=`cat "$DATADIR/sort.order"|xargs`
+    fi
+
+    
+    $DIALOG --clear --title "Sort direction" \
+	--default-item "$LAST_MNU_SORT_DIR" \
+        --menu "Select direction:" 20 51 4 \
+        "A"  "Ascending" \
+        "D" "Descending" \
+        "B" "Back to main menu" 2>"$DATADIR/dlgres.tmp"
+
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    RETVAL=`cat "$DATADIR/dlgres.tmp"`
+	    if [ "$RETVAL" == "B" ]; then #back to main menu, not change sort
+		return 1
+	    else
+		echo "$RETVAL" >"$DATADIR/sort.order"
+	    fi
+	    ;;
+	$ESC_C)
+	    return 1;;
+	$CANCEL_C)
+	    return 1;;
+    esac
+}
+
+menu_vpnconnect()
+{
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+    EXTRA_C=3
+    MNUFILE="$DATADIR/vpnmenu.txt"
+
+    if [ ! -e "$DATADIR/$LISTFILE" ]; then
+	messagebox "ERROR" "File $DATADIR/$LISTFILE not found! \n /
+	VPN Data not downloaded?"
+	return
+    fi
+
+    cat "$DATADIR/$LISTFILE" | awk -F, \
+    '{
+	HOST_NAME       = $1;
+	IP              = $2;
+	SCORE           = $3;
+	PING            = $4;
+	SPEED           = $5;
+	COUNTRY         = $6;
+	COUNTRYSHORT    = $7;
+	NUMVPNSESSION   = $8;
+	UPTIME          = $9;
+	TOTALUSERS      = $10;
+	TOTALTRAFFIC    = $11;
+	LOGTYPE         = $12;
+	OPERATOR        = $13;
+	MSG             = $14;
+	
+	printf \
+	"\"%i %s(%s,%s)\" \"%s|%s|%s|%s\"" \
+	" \"Uptime:%s Users:%s Traffic:%s Log:%s\" \\\n",
+	++j, HOST_NAME, IP, COUNTRYSHORT, SCORE, PING, SPEED, NUMVPNSESSION,
+	UPTIME, TOTALUSERS, TOTALTRAFFIC, LOGTYPE;
+    }' > $MNUFILE
+
+    #build dynamic menu from file
+    $DIALOG --clear \
+	--item-help \
+	--extra-button \
+	--extra-label "Info" \
+	--column-separator "|" \
+	--title "Select VPN" \
+	--default-item "$LAST_MNU_VPNCONNECT" \
+	--menu "Select VPN: HostName (IP, Country Code)    Score   Ping   Speed   Sessions" \
+	20 76 10 \
+	--file "$MNUFILE" 2>"$DATADIR/dlgres.tmp"
+    
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    RETVAL=`cat "$DATADIR/dlgres.tmp"`
+	    LAST_MNU_VPNCONNECT="$RETVAL"
+	    return 0
+	    ;;
+	$ESC_C)
+	    return 1;;
+	$CANCEL_C)
+	    return 1;;
+	$EXTRA_C)
+	    RETVAL=`cat "$DATADIR/dlgres.tmp"`
+	    show_vpndata "$RETVAL"
+	    LAST_MNU_VPNCONNECT="$RETVAL"
+	    return 2
+    esac
+}
+
+
+messagebox() #1 - title $2 - message
+{
+    
+    $DIALOG --title "$1" --msgbox "$2" 10 41
+}
+
+yesnobox() #1 - title $2 - message
+{
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+    ERROR_C=254
+    
+    $DIALOG --title "$1" --yesno "$2" 10 41
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    RETVAL="YES"
+	    return 0
+	    ;;
+	$ESC_C)
+	    RETVAL="NO"
+	    return 0
+	    ;;
+	$CANCEL_C)
+	    RETVAL="NO"
+	    return 0
+	    ;;
+	$ERROR_C)
+	    messagebox "ERROR!" "Dialog error!"
+	    exit 1
+    esac
+
+    
+}
+
+show_process() #$1 - message
+{
+    PROCLOG="$PROCLOG$1"
+    $DIALOG --title "Process" --infobox "$PROCLOG" 20 70
+}
+
+edit_options()
+{
+    OK_C=0
+    ESC_C=255
+    CANCEL_C=1
+    ERROR_C=254
+    INPUTFILE="$DATADIR/options.txt"
+
+    if [ ! -e "$INPUTFILE" ]; then
+	touch "$INPUTFILE"
+    fi
+    
+    $DIALOG --title "Edit options ($INPUTFILE)" \
+	--fixed-font --editbox $INPUTFILE 0 0 2>"$DATADIR/dlgres.tmp"
+    
+    RETVAL=$?
+    
+    case "$RETVAL" in
+	$OK_C)
+	    #save options
+	    rm "$DATADIR/options.txt"
+	    mv "$DATADIR/dlgres.tmp" "$DATADIR/options.txt"
+	    return 0
+	    ;;
+	$ESC_C)
+	    return 1;;
+	$CANCEL_C)
+	    return 1;;
+	$ERROR_C)
+	    messagebox "ERROR" "Dialog error!"
+	    return 2
+	    ;;
+    esac
+
+}
+
+show_vpndata() #$1 - string number from Select VPN dialog
+{
+    STRNO=`echo "$1"|awk '{print $1}'`
+    TMPSTRING=`sed -n "$STRNO"p "$DATADIR/$LISTFILE"`
+    eval $(echo $TMPSTRING|awk -F "," '{print "HOST_NAME="dq $1 dq;
+	 print "IP="dq $2 dq;print "SCORE=" dq $3 dq;print "PING=" dq $4 dq;
+	 print "SPEED=" dq $5 dq;print "COUNTRY=" dq $6 dq;
+	 print "COUNTRYSHORT=" dq $7 dq; print "NUMVPNSESSION=" dq $8 dq;
+	 print "UPTIME=" dq $9 dq;print "TOTALUSERS=" dq $10 dq;
+	 print "TOTALTRAFFIC=" dq $11 dq;print "LOGTYPE=" dq $12 dq;
+	 print "OPERATOR=" dq $13 dq;print "MSG=" dq $14 dq }' dq='"')    
+
+    VPNDATA=" Host name: $HOST_NAME\n IP: $IP\n Score: $SCORE\n"
+    VPNDATA=$VPNDATA" Ping: $PING\n Speed: $SPEED\n Country: $COUNTRY\n" 
+    VPNDATA=$VPNDATA" Country code: $COUNTRYSHORT\n VPN sessions: $NUMVPNSESSION\n" 
+    VPNDATA=$VPNDATA" Uptime: $UPTIME\n Total users: $TOTALUSERS\n" 
+    VPNDATA=$VPNDATA" Total traffic: $TOTALTRAFFIC\n Log type: $LOGTYPE\n" 
+    VPNDATA=$VPNDATA" Operator: $OPERATOR\n Message: $MSG\n"
+
+    $DIALOG --title "Information" \
+        --infobox "$VPNDATA \n Press any key..." 25 50
+    read -n 1 -s -r
+}
+
+build_sortmenu() #$1 - DB (CSV) header
+{
+    if [ -e "$DATADIR/sortmenu.txt" ]; then
+	rm "$DATADIR/sortmenu.txt"
+    fi
+    IFS_=$IFS
+    IFS=$'\n'
+    J=0
+    for TMPSTRING in $(echo "$1"|sed -e $'s~,~\\n~g'); do
+	let "J+=1"
+	B64=`echo "$TMPSTRING"|grep -c 'Base64'`
+	if [ $B64 -ne 0 ]; then
+	    continue
+	fi
+	
+	MENUSTR="\"$J\" \"$TMPSTRING\" \\"
+	echo "$MENUSTR" >> "$DATADIR/sortmenu.txt"
+    done
+    IFS=$IFS_
+}
+
+update_vpnlist()
+{
+    show_process "Download VPN List...\n"
+    
+    wget --progress=dot -O "$DATADIR/$LISTFILE" --tries=3 --timeout=30 "$LISTADDR" 2>&1 |\
+    stdbuf -o0 awk '/[.] +[0-9][0-9]?[0-9]?%/ { print substr($0,63,3) }' | \
+    dialog --gauge "Download VPN List from $LISTADDR" 10 100
+    
+    RETVAL=$?
+    MINSIZE="10" #minimal file size (in bytes)
+    
+    #check file size
+    CURSIZE=`du -sb "$DATADIR/$LISTFILE"|awk '{print $1}'`
+    if [ "$CURSIZE" -le "MINSIZE" ]; then
+	RETVAL="9"
+    fi
+
+    case "$RETVAL" in
+	0)
+	    show_process "OK\n"
+	    ;;
+	1)
+	    messagebox "Error" "Generic error ($RETVAL)"
+	    ;;
+	2)
+	    messagebox "Error" "Command line or config error ($RETVAL)"
+	    ;;
+	3)
+	    messagebox "Error" "I/O error ($RETVAL)"
+	    ;;
+	4)
+	    messagebox "Error" "Network failure ($RETVAL)"
+	    ;;
+	5)
+	    messagebox "Error" "SSL verification failure ($RETVAL)"
+	    ;;
+	6)
+	    messagebox "Error" "Username/password authentication failure ($RETVAL)"
+	    ;;
+	7)
+	    messagebox "Error" "Protocol error ($RETVAL)"
+	    ;;
+	8)
+	    messagebox "Error" "Server error ($RETVAL)"
+	    ;;
+	9)
+	    messagebox "Error" "Small file size ($CURSIZE <= minimal file size $MINSIZE). Download error?"
+	    ;;
+	*)
+	    messagebox "Error" "Unknow error ($RETVAL)"
+	    ;;
+    esac
+
+    #remove wrong file if exist
+    if [ "$RETVAL" -ne 0 ];then
+	if [ -e "$DATADIR/$LISTFILE" ];then
+	    rm "$DATADIR/$LISTFILE"
+	    return "$RETVAL"
+	fi
+    fi
+
+    show_process "Converting WIN --> Linux...\n"
+    sed -i 's~\x0D$~~' "$DATADIR/$LISTFILE"
+    show_process "Removing * strings...\n"
+    sed -i '/^*/d' "$DATADIR/$LISTFILE"
+    TMPSTRING=`grep '^#' "$DATADIR/$LISTFILE"`
+    build_sortmenu "$TMPSTRING"
+    show_process "Remove header from database...\n"
+    sed -i '/^#/d' "$DATADIR/$LISTFILE"
+    show_process "Remove old sort settings...\n"
+    rm "$DATADIR/sort.field"
+    rm "$DATADIR/sort.order"
+    show_process "Complete!\nPress any key to return in main menu..."
+    read -n 1 -s -r
+}
+
+sort_data()
+{
+    SORTFIELD=""
+    SORTDIR=""
+    
+    if [ ! -e "$DATADIR/$LISTFILE" ]; then
+	messagebox "ERROR" "File $DATADIR/$LISTFILE not found! \n /
+	VPN Data not downloaded?"
+	return
+    fi
+
+    
+    if [ ! -e "$DATADIR/sort.field" ]; then
+	SORTFIELD="1"
+    else
+	SORTFIELD=`cat "$DATADIR/sort.field" | xargs`
+    fi
+    
+    if [ ! -e "$DATADIR/sort.order" ]; then
+	SORTDIR="A"
+    else
+	SORTDIR=`cat "$DATADIR/sort.order" | xargs`
+    fi
+    
+    if [ -z "$SORTFIELD" ];then
+	SORTFIELD="1"
+    fi
+    if [ -z "$SORTDIR" ];then
+	SORTDIR="A"
+    fi
+    
+    PROCLOG=""
+    if [ "$SORTDIR" == "A" ];then
+	show_process "Sort direction: Ascending\n"
+    else
+	show_process "Sort direction: Descending\n"
+    fi
+    FIELD_NAME=`cat "$DATADIR/header.txt"|grep -w "$SORTFIELD"`
+    show_process "Field name: $FIELD_NAME\n"
+    show_process "Sorting...\n"
+    
+    if [ "$SORTDIR" == "A" ];then
+	sort -k$SORTFIELD -t"," "$DATADIR/$LISTFILE" > "$DATADIR/$LISTFILE.tmp"
+    else
+	sort -k$SORTFIELD -r -t"," "$DATADIR/$LISTFILE" > "$DATADIR/$LISTFILE.tmp"
+    fi
+    rm "$DATADIR/$LISTFILE"
+    mv "$DATADIR/$LISTFILE.tmp" "$DATADIR/$LISTFILE"
+    
+    show_process "Complete!\nPress any key to return in main menu..."
+    read -n 1 -s -r
+}
+
+prepare_connect() #$1 - selected VPN
+{
+    #get VPN string from VPN database
+    STRNO=`echo "$1"|awk '{print $1}'`
+    TMPSTRING=`sed -n "$STRNO"p "$DATADIR/$LISTFILE"`
+    #get base64 encoded config
+    echo "$TMPSTRING"|awk -F "," '{print $15}' >"$DATADIR/base64.tmp"
+    #decode config
+    base64 -d "$DATADIR/base64.tmp" > "$DATADIR/vpngate.ovpn"
+    rm "$DATADIR/base64.tmp"
+    #change Windows line endings to Linux line endings
+    sed -i 's/\r$//' "$DATADIR/vpngate.ovpn"
+    #write auth file
+    echo "$VPN_LOGIN" > "$AUTH_DIR/$AUTH_FILE"
+    echo "$VPN_PASS" >> "$AUTH_DIR/$AUTH_FILE"
+    #remove comments
+    grep -o '^[^#]*' "$DATADIR/vpngate.ovpn" >"$DATADIR/vpngate.tmp"
+    rm "$DATADIR/vpngate.ovpn"
+    mv "$DATADIR/vpngate.tmp" "$DATADIR/vpngate.ovpn"
+    
+    #add (or replace) VPN options
+    
+    IFS_=$IFS
+    IFS=$'\n'
+    for TMPSTRING in $(cat "$DATADIR/options.txt"); do
+	TMPSTRING=`echo "$TMPSTRING"`
+	if [ -z "$TMPSTRING" ]; then
+	    continue
+	fi
+	CMND_ST=`echo "$TMPSTRING" |awk '{print $1}'`
+	CMND_COUNT=`grep -c -w "$CMND_ST" "$DATADIR/vpngate.ovpn"`
+	#echo "$CMND_ST $CMND_COUNT"
+	if [ "$CMND_COUNT" -eq 0 ];then #not found, add
+	    sed -i -e "1 s%^%$TMPSTRING\n%" "$DATADIR/vpngate.ovpn"
+	else #found, replace
+	    sed -i "s%^ *$CMND_ST.*%$TMPSTRING%" "$DATADIR/vpngate.ovpn"
+	fi
+
+    done
+    IFS=$IFS_
+}
+
+ovpn_down()
+{
+    CH_S[0]='-' #pseudographic items
+    CH_S[1]='/'
+    CH_S[2]='|'
+    CH_S[3]='\'
+
+    CTR=0
+    PGNO=0
+    pkill $OPENVPN
+    while [ "$CTR" -ne "1" ];do
+	CTR=`ps ax|grep -c "$OPENVPN"`
+	dialog --sleep 1 \
+	--title "Disconnecting" \
+        --infobox "Wait for shutdown Openvpn:${CH_S[PGNO]}" 3 35
+	
+	let "PGNO=PGNO+1"
+	if [ "$PGNO" -eq 4 ];then
+	    PGNO=0
+	fi
+    done
+}
+
+ovpn_up()
+{
+    OVPN_CMD="$OPENVPN --config $DATADIR/vpngate.ovpn"
+    
+    if [ -z "$LOG_FILE" ]; then
+	LOG_FILE="$DATADIR/log.tmp"
+	RMLOG=1
+	LOG_APPEND=0
+    fi
+
+    if [ -z "$LOG_TTYN" ];then #no TTY, only log
+	if [ "$LOG_APPEND" -eq 1 ];then #append log
+	    $OVPN_CMD >>"$LOG_FILE" &
+	else #new log
+	    $OVPN_CMD >"$LOG_FILE" &
+	fi
+    else #log and tty
+	if [ "$LOG_APPEND" -eq 1 ];then #append log
+	    $OVPN_CMD |tee -a "$LOG_FILE" >/dev/tty"$LOG_TTYN" &
+	else #new log
+	    $OVPN_CMD |tee "$LOG_FILE" >/dev/tty"$LOG_TTYN" &
+	fi
+    fi
+
+    $DIALOG --title "Connection log" "$@" \
+	    --exit-label "Return to main menu" \
+    	    --tailbox "$LOG_FILE" 24 70
+
+    if [ "$RMLOG" -eq 1 ]; then
+	rm "$LOG_FILE"
+    fi
+}
+
+check_soft()
+{
+    #check software
+    $1 >/dev/null 2>/dev/null
+    RETVAL=$?
+    if [ "$RETVAL" -eq 126 ]; then
+	echo "$1 access denied or not execute file!"
+	exit 1
+    fi
+    if [ "$RETVAL" -eq 127 ]; then
+	echo "$1 not found!"
+	echo "Install software or set path to software in script variable $2."
+	exit 1
+    fi
+}
+
+check_soft "$DIALOG" "DIALOG" #check dialog utility
+check_soft "$OPENVPN" "OPENVPN" #check openvpn utility
+
+mkdir -p "$DATADIR"
+while [ 1 -eq 1 ];do
+    menu_main
+    case "$RETVAL" in
+	"U")
+	    PROCLOG=""
+	    update_vpnlist
+	    ;;
+	"S")
+	    menu_sort
+	    if [ $? -eq 1 ];then
+		continue
+	    fi
+	    sort_data
+	    ;;
+	"I")
+	    menu_sort_dir
+	    if [ $? -eq 1 ];then
+		continue
+	    fi
+	    sort_data
+	    ;;
+	"O")
+	    edit_options
+	    if [ $? -eq 0 ];then
+		messagebox "Saved" "Options saved!"
+	    fi
+	    ;;
+	"C")
+	    if [ ! -e "$DATADIR/$LISTFILE" ]; then
+		$DIALOG --title "Information" \
+    		    --infobox "Loading, please wait..." 5 30
+		build_vpnmenu
+		if [ $? -eq 1 ];then
+		    continue
+		fi
+	    fi
+	    
+	    RC=2
+	    while [ "$RC" -eq 2 ];do
+		menu_vpnconnect #return to VPN Connect menu after info request
+		RC=$?
+	    done
+	    if [ "$RC" -eq 0 ];then #connect
+		prepare_connect "$RETVAL"
+		ovpn_down
+		ovpn_up
+		continue
+	    fi
+	    ;;
+	"D")
+	    yesnobox "Disconnect" "Disconnect VPN?"
+	    if [ "$RETVAL" == "YES" ]; then
+		ovpn_down
+	    fi
+	    ;;
+	"R")
+	    #reconnect
+	    if [ ! -e "$DATADIR/vpngate.ovpn" ]; then
+		messagebox "Error" "File $DATADIR/vpngate.ovpn not found. Select VPN."
+		continue
+	    fi
+	    
+	    yesnobox "Reconnect" "Reconnect VPN?"
+	    if [ "$RETVAL" == "YES" ]; then
+		ovpn_down
+		ovpn_up
+	    fi
+	    ;;
+	"A")
+	    #about
+	    messagebox "About" " vpngate.net console client \n support site tolik-punkoff.com\n lj.rossia.org/users/hex_laden\n Telegram: @eternalsavage\n\n (L) ChaosSoft 2020"
+	    ;;
+	"X")
+	    clear
+	    exit 0
+	    ;;
+    esac
+done
