@@ -75,50 +75,50 @@ LOG_APPEND = 0 - append log (0 - do not append 1 - append)
 
 ## Screenshots
 
-![Main Menu] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/01-main-menu.png)
+![Main Menu](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/01-main-menu.png)
 
 Main menu
 
-![Uploading Server List] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/02-update-vpn-list.png)
+![Uploading Server List](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/02-update-vpn-list.png)
 
 Loading the server list
 
-![Preparing Server List] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/03-update-vpn-list.png)
+![Preparing Server List](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/03-update-vpn-list.png)
 
 Preparing the server list
 
-![Server list sorting option] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/04-sort-field.png)
+![Server list sorting option](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/04-sort-field.png)
 
 Server list sorting option
 
-![Sort order] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/05-sort-order.png)
+![Sort order](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/05-sort-order.png)
 
-The sort order
+Sort order
 
-![VPN Options] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/06-vpn-options.png)
+![VPN Options](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/06-vpn-options.png)
 
 VPN options
 
-![Select VPN Server] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/07-select-vpn.png)
+![Select VPN Server](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/07-select-vpn.png)
 
 Choosing a VPN Server
 
-![VPN Server Information] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/08-vpn-info.png)
+![VPN Server Information](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/08-vpn-info.png)
 
 VPN Server Information
 
-![Connecting to Server] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/09-vpn-connect-ok.png)
+![Connecting to Server](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/09-vpn-connect-ok.png)
 
 Server connection
 
-![Disconnecting] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/10-vpn-disconnecting.png)
+![Disconnecting](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/10-vpn-disconnecting.png)
 
 Disconnection
 
-![Window About] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/11-about.png)
+![Window About](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/11-about.png)
 
 About window
 
-![Connection Test] (https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/12-test-final.png)
+![Connection Test](https://raw.githubusercontent.com/tolik-punkoff/vpngate-console-client/main/screenshots/12-test-final.png)
 
 Connection test
